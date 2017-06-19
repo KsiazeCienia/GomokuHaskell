@@ -149,9 +149,6 @@ checkWin board figure = do
         loop board figure
 
 
-
-board = Board 5 (makeBoard 4 4 [])
-
 main :: IO()
 main = do
   loop board Cross
