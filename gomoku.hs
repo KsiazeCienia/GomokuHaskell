@@ -52,21 +52,26 @@ changeColumn column x y figure =
     let(a, b) = splitAt y column
         in a ++ [Point x y figure] ++ tail b
 
-Win :: Board -> Point -> Bool
-Win board point = ((checkUp board point 1) || (checkLeft board point 1) || (checkUpRight board point 1) || (checkUpLeft board point 1))
+isWinner :: Board -> Point -> Bool
+--isWinner board point = ((checkUp board point 1) || (checkLeft board point 1) || (checkUpRight board point 1) || (checkUpLeft board point 1))
+isWinner board point = (checkUp board point 1)
 
 checkUp :: Board -> Point -> Int -> Bool
 checkUp board point result
     | result == 5 = True
-    | ((x point) > (size board)) && ((x point) < 1) = checkDown board (cells board !! ((x point)  - result) !! (y point)) result
-    | figure (cells board !! (x point) !! (y point)) == (figure point) = checkUp board (cells board !! ((x point)  + 1) !! (y point)) (result + 1)
+    | (((x point) - 1) == 0) && (figure (cells board !! 0 !! (y point)) == (figure point)) = checkDown board (cells board !! ((x point)  + result) !! (y point)) (result + 1)
+    | (((x point) - 1) == 0) || (figure (cells board !! (x point) !! (y point)) /= (figure point)) = checkDown board (cells board !! ((x point)  + result) !! (y point)) result
+    | (((x point) - 1) < 0) = checkDown board (cells board !! ((x point)  + result +) !! (y point)) result
+    | figure (cells board !! (x point) !! (y point)) == (figure point) = checkUp board (cells board !! ((x point) - 1) !! (y point)) (result + 1)
     | otherwise = False
 
 checkDown :: Board -> Point -> Int -> Bool
 checkDown board point result
     | result == 5 = True
-    | ((x point) > (size board)) && ((x point) < 1) && (result < 5) = False
-    | figure (cells board !! (x point)  !! (y point)) == (figure point) = checkDown board (cells board !! ((x point)  - 1) !! (y point)) (result + 1)
+    | (((x point) + 1) == (size board)) && ((figure (cells board !! (size board) !! (y point))) == (figure point)) = checkDown board (cells board !! ((x point) + 1) !! (y point)) (result + 1)
+    | (((x point) + 1) == (size board)) = checkDown board (cells board !! ((x point) + 1) !! (y point)) result
+    | (((x point) + 1) > (size board)) && (result < 5) = False
+    | figure (cells board !! (x point)  !! (y point)) == (figure point) = checkDown board (cells board !! ((x point) + 1) !! (y point)) (result + 1)
     | otherwise = False
 
 checkLeft :: Board -> Point -> Int -> Bool
@@ -135,11 +140,15 @@ loop board figure1 = do
     if (figure (cells board !! number !! number2) == Empty) then do
         let board2 = insertFigure board (number) (number2) figure1
         putStrLn $ show board2
-        checkWin board2 figure1
+        putStrLn "--------------"
+        if ((isWinner board2 (Point number number2 figure1)) == True) then do
+            end board2 figure1
+        else do
+            checkWin board2 figure1
     else do
         loop board figure1
 
-checkWin:: Board -> Figure->IO()
+checkWin:: Board -> Figure -> IO()
 checkWin board figure = do
     if(figure == Circle) then do
         let figure = Cross
