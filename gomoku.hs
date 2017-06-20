@@ -2,6 +2,142 @@
 
 import Data.List
 import System.Random
+import System.IO
+import System.Environment
+import System.IO.Error
+
+aiVSaiLoop :: Board -> Figure -> IO()
+aiVSaiLoop board f = do
+    gen <- getStdGen
+    newStdGen
+    let (x, _) = randomR (0, ((size board) - 1)) gen :: (Int, StdGen)
+    gen <- getStdGen
+    newStdGen
+    let (y, _) = randomR (0, ((size board) - 1)) gen :: (Int, StdGen)
+    if (figure (cells board !! x !! y) == Empty) then do
+        let board2 = insertFigure board (x) (y) f
+        putStrLn $ show board2
+        putStrLn "------------------------------------------"
+        if(isWinner board2 f x y 0 == 5) then do
+            end board2 f
+        else do
+            changeAI board2 f
+    else do
+        aiVSaiLoop board f
+
+changeAI :: Board -> Figure -> IO()
+changeAI board f = do
+    if(f == Circle) then do
+        aiVSaiLoop board Cross
+    else do
+        aiVSaiLoop board Circle
+
+
+aiVSai :: IO()
+aiVSai = do
+    aiVSaiLoop board Cross
+
+userVSai :: IO()
+userVSai = do
+    userVSaiLoop board Cross
+
+userVSaiLoop :: Board -> Figure -> IO()
+userVSaiLoop board f = do
+    if (f == Circle) then do
+        gen <- getStdGen
+        newStdGen
+        let (x, _) = randomR (0, ((size board) - 1)) gen :: (Int, StdGen)
+        gen <- getStdGen
+        newStdGen
+        let (y, _) = randomR (0, ((size board) - 1)) gen :: (Int, StdGen)
+        if (figure (cells board !! x !! y) == Empty) then do
+            let board2 = insertFigure board (x) (y) f
+            putStrLn $ show board2
+            putStrLn "------------------------------------------"
+            if(isWinner board2 f x y 0 == 5) then do
+                end board2 f
+            else do
+                changeAiPlayer board2 f
+        else do
+            aiVSaiLoop board f
+    else do
+        putStrLn "Podaj numer kolumny"
+        x <- getLine
+        putStrLn "Podaj numer wiersza"
+        y <- getLine
+        if (figure (cells board !! (read x::Int) !! (read y::Int)) == Empty) then do
+            let board2 = insertFigure board (read x::Int) (read y::Int) f
+            putStrLn $ show board2
+            putStrLn "------------------------------------------"
+            if(isWinner board2 f (read x::Int) (read y::Int) 0 == 5) then do
+                end board2 f
+            else do
+                changeAiPlayer board2 f
+        else do
+            putStrLn "Podałeś niepoprawne dane spróbuj ponownie"
+            aiVSaiLoop board f
+
+changeAiPlayer :: Board -> Figure -> IO()
+changeAiPlayer board f = do
+    if(f == Circle) then do
+        userVSaiLoop board Cross
+    else do
+        userVSaiLoop board Circle
+
+
+userVSuser :: IO()
+userVSuser = do
+    userVSuserLoop board Cross
+
+userVSuserLoop :: Board -> Figure -> IO()
+userVSuserLoop board f = do
+    if (f == Circle) then do
+        putStrLn "Teraz kolej o"
+    else do
+        putStrLn "Teraz kolej x"
+    putStrLn "Podaj numer kolumny"
+    x <- getLine
+    putStrLn "Podaj numer wiersza"
+    y <- getLine
+    if (figure (cells board !! (read x::Int) !! (read y::Int)) == Empty) then do
+        let board2 = insertFigure board (read x::Int) (read y::Int) f
+        putStrLn $ show board2
+        putStrLn "------------------------------------------"
+        if(isWinner board2 f (read x::Int) (read y::Int) 0 == 5) then do
+            end board2 f
+        else do
+            changePlayer board2 f
+    else do
+        putStrLn "Podałeś niepoprawne dane spróbuj ponownie"
+        aiVSaiLoop board f
+
+changePlayer :: Board -> Figure -> IO()
+changePlayer board f = do
+    if(f == Circle) then do
+        userVSuserLoop board Cross
+    else do
+        userVSuserLoop board Circle
+
+
+
+main :: IO()
+main = do
+    putStrLn "Wciśnij numer aby wybrać"
+    putStrLn "1. ai vs ai"
+    putStrLn "2. user vs ai"
+    putStrLn "3. user vs user"
+    choice <- getLine
+    case choice of
+        "1" -> aiVSai
+        "2" -> userVSai
+        "3" -> userVSuser
+
+
+end:: Board -> Figure -> IO()
+end board f = do
+    putStrLn $ show board
+    putStr "Wygrał "
+    putStrLn $ show f
 
 data Figure = Cross | Circle | Empty deriving Eq
 
@@ -52,71 +188,69 @@ changeColumn column x y figure =
     let(a, b) = splitAt y column
         in a ++ [Point x y figure] ++ tail b
 
-isWinner :: Board -> Point -> Bool
---isWinner board point = ((checkUp board point 1) || (checkLeft board point 1) || (checkUpRight board point 1) || (checkUpLeft board point 1))
-isWinner board point = (checkUp board point 1)
+checkUp :: Board -> Figure -> Int -> Int -> Int -> Int -> Int
+checkUp board f x y score l
+    | x < 0  = checkDown board f (x + l + 1) y score
+    | figure (cells board !! x !! y) == f = checkUp board f (x - 1) y (score + 1) (l + 1)
+    | otherwise && score == 5 = score
+    | otherwise = checkDown board f (x + l + 1) y score
 
-checkUp :: Board -> Point -> Int -> Bool
-checkUp board point result
-    | result == 5 = True
-    | (((x point) - 1) == 0) && (figure (cells board !! 0 !! (y point)) == (figure point)) = checkDown board (cells board !! ((x point)  + result) !! (y point)) (result + 1)
-    | (((x point) - 1) == 0) || (figure (cells board !! (x point) !! (y point)) /= (figure point)) = checkDown board (cells board !! ((x point)  + result) !! (y point)) result
-    | (((x point) - 1) < 0) = checkDown board (cells board !! ((x point)  + result +) !! (y point)) result
-    | figure (cells board !! (x point) !! (y point)) == (figure point) = checkUp board (cells board !! ((x point) - 1) !! (y point)) (result + 1)
-    | otherwise = False
+checkDown :: Board -> Figure -> Int -> Int -> Int -> Int
+checkDown board f x y score
+     | x > ((size board) - 1) = score
+     | figure ( cells board !! x !! y ) == f = checkDown board f (x + 1) y (score + 1)
+     | score == 1 = checkLeft board f (x - 1) (y - 1) score 1
+     | otherwise = score
 
-checkDown :: Board -> Point -> Int -> Bool
-checkDown board point result
-    | result == 5 = True
-    | (((x point) + 1) == (size board)) && ((figure (cells board !! (size board) !! (y point))) == (figure point)) = checkDown board (cells board !! ((x point) + 1) !! (y point)) (result + 1)
-    | (((x point) + 1) == (size board)) = checkDown board (cells board !! ((x point) + 1) !! (y point)) result
-    | (((x point) + 1) > (size board)) && (result < 5) = False
-    | figure (cells board !! (x point)  !! (y point)) == (figure point) = checkDown board (cells board !! ((x point) + 1) !! (y point)) (result + 1)
-    | otherwise = False
+checkLeft :: Board -> Figure -> Int -> Int -> Int -> Int -> Int
+checkLeft board f x y score l
+    | y < 0 = checkRight board f x (y + l + 1) score 1
+    | figure (cells board !! x !! y ) == f = checkLeft board f x (y - 1) (score + 1) (l + 1)
+    | otherwise && score == 5 = score
+    | otherwise = checkRight board f x (y + l + 1) score 1
 
-checkLeft :: Board -> Point -> Int -> Bool
-checkLeft board point result
-    | result == 5 = True
-    | ((y point) > (size board)) && ((y point) < 1) = checkRight board (cells board !! (x point)  !! ((y point) + result)) result
-    | figure (cells board !! (x point)  !! (y point)) == (figure point) = checkLeft board (cells board !! (x point) !! ((y point) - 1)) (result + 1)
-    | otherwise = False
+checkRight :: Board -> Figure -> Int -> Int -> Int -> Int -> Int
+checkRight board f x y score l
+    | y > ((size board) - 1) = score
+    | figure (cells board !! x !! y ) == f = checkRight board f x (y + 1) (score + 1) (l + 1)
+    | otherwise && score == 5 = score
+    | otherwise = checkUpLeft board f (x - 1) (y - l - 1) 1 1
 
-checkRight :: Board -> Point -> Int -> Bool
-checkRight board point result
-    | result == 5 = True
-    | ((y point) > (size board)) && ((y point) < 1) && (result < 5) = False
-    | figure (cells board !! (x point) !! (y point)) == (figure point) = checkRight board (cells board !! (x point) !! ((y point) + 1)) (result + 1)
-    | otherwise = False
+checkUpLeft :: Board -> Figure -> Int -> Int -> Int -> Int -> Int
+checkUpLeft board f x y score l
+    | x < 0 || y < 0 = checkDownRight board f (x + l + 1) (y + l + 1) score 1
+    | figure (cells board !! x !! y ) == f = checkUpLeft board f (x - 1) (y - 1) (score + 1) (l + 1)
+    | otherwise && score == 5 = score
+    | otherwise = checkDownRight board f (x + l + 1) (y + l + 1) 1 1
 
-checkUpRight :: Board -> Point -> Int -> Bool
-checkUpRight board point result
-    | result == 5 = True
-    | ((x point) > (size board)) && ((x point) < 1) && ((y point) > (size board)) && ((y point) < 1) = checkDownLeft board (cells board !! ((x point) - result) !! ((y point) - result)) result
-    | figure (cells board !! (x point) !! (y point)) == (figure point) = checkUpRight board (cells board !! ((x point) - 1) !! ((y point) + 1)) (result + 1)
-    | otherwise = False
+checkDownRight :: Board -> Figure -> Int -> Int -> Int -> Int -> Int
+checkDownRight board f x y score l
+    | x > ((size board) - 1) || y > ((size board) - 1) = checkUpRight board f (x - l - 1) y 1 1
+    | figure (cells board !! x !! y ) == f = checkDownRight board f (x + 1) (y + 1) (score + 1) (l + 1)
+    | otherwise && score == 5 = score
+    | otherwise = checkUpRight board f (x - l - 1) y 1 1
 
-checkDownLeft :: Board -> Point -> Int -> Bool
-checkDownLeft board point result
-    | result == 5 = True
-    | ((x point) > (size board)) && ((x point) < 1) && ((y point) > (size board)) && ((y point) < 1) && (result < 5) = False
-    | figure (cells board !! (x point) !! (y point)) == (figure point) = checkDownLeft board (cells board !! ((x point) + 1) !! ((y point) - 1)) (result + 1)
-    | otherwise = False
+checkUpRight :: Board -> Figure -> Int -> Int -> Int -> Int -> Int
+checkUpRight board f x y score l
+    | x < 0 || y > ((size board) - 1) = checkDownLeft board f (x + l + 1) (y - l - 1) score 1
+    | figure (cells board !! x !! y ) == f = checkUpRight board f (x - 1) (y + 1) (score + 1) (l + 1)
+    | otherwise && score == 5 = score
+    | otherwise = checkDownLeft board f (x + l + 1) (y - l - 1) 1 1
 
-checkUpLeft :: Board -> Point -> Int -> Bool
-checkUpLeft board point result
-    | result == 5 = True
-    | ((x point) > (size board)) && ((x point) < 1) && ((y point) > (size board)) && ((y point) < 1) = checkDownRight board (cells board !! ((x point) - result) !! ((y point) + result)) result
-    | figure (cells board !! (x point) !! (y point)) == (figure point) = checkUpLeft board (cells board !! ((x point) - 1) !! ((y point) - 1)) (result + 1)
-    | otherwise = False
+checkDownLeft :: Board -> Figure -> Int -> Int -> Int -> Int -> Int
+checkDownLeft board f x y score l
+    | y < 0 || x > ((size board) - 1) = score
+    | figure (cells board !! x !! y) == f = checkDownLeft board f (x + 1) (y - 1) (score + 1) (l + 1)
+    | otherwise && score == 5 = score
+    | otherwise = score
 
-checkDownRight :: Board -> Point -> Int -> Bool
-checkDownRight board point result
-    | result == 5 = True
-    | ((x point) > (size board)) && ((x point) < 1) && ((y point) > (size board)) && ((y point) < 1) && (result < 5) = False
-    | figure (cells board !! (x point) !! (y point)) == (figure point) = checkDownRight board (cells board !! ((x point) + 1) !! ((y point) + 1)) (result + 1)
-    | otherwise = False
+isWinner :: Board -> Figure -> Int -> Int -> Int -> Int
+isWinner board f x y score
+    | x == ((size board) - 1) || y == ((size board) - 1) = score
+    | figure (cells board !! x !! y) == f = checkUp board f (x - 1) y (score + 1) 1
+    | otherwise = score
 
-board = Board 5 (makeBoard 4 4 [])
+board = Board 19 (makeBoard 18 18 [])
 board5 = insertFigure board 3 1 Circle
 point5 = Point 3 1 Circle
 point1 = Point 1 1 Circle
@@ -127,44 +261,3 @@ point3 = Point 1 4 Circle
 board3 = insertFigure board 1 4 Circle
 point4 = Point 4 1 Circle
 board4 = insertFigure board 4 1 Circle
-
-
-loop :: Board -> Figure -> IO()
-loop board figure1 = do
-    gen <- getStdGen
-    newStdGen
-    let (number, _) = randomR (0, ((size board) - 1)) gen :: (Int, StdGen)
-    gen <- getStdGen
-    newStdGen
-    let (number2, _) = randomR (0, ((size board) - 1)) gen :: (Int, StdGen)
-    if (figure (cells board !! number !! number2) == Empty) then do
-        let board2 = insertFigure board (number) (number2) figure1
-        putStrLn $ show board2
-        putStrLn "--------------"
-        if ((isWinner board2 (Point number number2 figure1)) == True) then do
-            end board2 figure1
-        else do
-            checkWin board2 figure1
-    else do
-        loop board figure1
-
-checkWin:: Board -> Figure -> IO()
-checkWin board figure = do
-    if(figure == Circle) then do
-        let figure = Cross
-        loop board figure
-    else do
-        let figure = Circle
-        loop board figure
-
-
-main :: IO()
-main = do
-  loop board Cross
-
-
-end:: Board -> Figure -> IO()
-end board figure = do
-    putStrLn $ show board
-    putStr "Wygrał "
-    putStrLn $ show figure
